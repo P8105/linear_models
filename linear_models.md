@@ -174,6 +174,18 @@ nyc_airbnb |>
 
 <img src="linear_models_files/figure-gfm/unnamed-chunk-9-2.png" width="90%" />
 
+Now with a qq plot!
+
+``` r
+nyc_airbnb |> 
+  modelr::add_residuals(fit) |> 
+  ggplot(aes(sample = resid)) + 
+  stat_qq() + 
+  stat_qq_line()
+```
+
+<img src="linear_models_files/figure-gfm/unnamed-chunk-10-1.png" width="90%" />
+
 ## Hypothesis test for categorical predictor
 
 fit a “null” and “alternative” model

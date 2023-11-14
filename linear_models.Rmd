@@ -119,6 +119,15 @@ nyc_airbnb |>
 
 ```
 
+Now with a qq plot!
+
+```{r}
+nyc_airbnb |> 
+  modelr::add_residuals(fit) |> 
+  ggplot(aes(sample = resid)) + 
+  stat_qq() + 
+  stat_qq_line()
+```
 
 ## Hypothesis test for categorical predictor
 
