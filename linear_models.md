@@ -1,46 +1,22 @@
----
-title: "Linear Models"
-output: github_document
----
-
-```{r, include = FALSE, message = FALSE, warning = FALSE}
-library(tidyverse)
-
-knitr::opts_chunk$set(
-	echo = TRUE,
-	warning = FALSE,
-  fig.width = 6,
-  fig.asp = .6,
-  out.width = "90%"
-)
-
-theme_set(theme_minimal() + theme(legend.position = "bottom"))
-
-options(
-  ggplot2.continuous.colour = "viridis",
-  ggplot2.continuous.fill = "viridis"
-)
-
-scale_colour_discrete = scale_colour_viridis_d
-scale_fill_discrete = scale_fill_viridis_d
-```
+Linear Models
+================
 
 Load key packages.
 
-```{r}
+``` r
 library(tidyverse)
 library(p8105.datasets)
 ```
 
 Load the NYC airbnb data.
 
-```{r}
+``` r
 data(nyc_airbnb)
 ```
 
 Look at the data / do some cleaning.
 
-```{r}
+``` r
 nyc_airbnb = 
   nyc_airbnb |> 
   mutate(
@@ -55,16 +31,26 @@ nyc_airbnb =
 
 Do regression!!!
 
-```{r}
+``` r
 fit = lm(price ~ stars + borough, data = nyc_airbnb)
 ```
 
 do some additional cleaning then refit.
 
-```{r}
+``` r
 nyc_airbnb |> 
   count(borough)
+```
 
+    ## # A tibble: 4 × 2
+    ##   borough       n
+    ##   <chr>     <int>
+    ## 1 Bronx       649
+    ## 2 Brooklyn  16810
+    ## 3 Manhattan 19212
+    ## 4 Queens     3821
+
+``` r
 nyc_airbnb = 
   nyc_airbnb |> 
   mutate(
@@ -77,7 +63,7 @@ fit = lm(price ~ stars + borough, data = nyc_airbnb)
 
 Look at `lm` stuff
 
-```{r, eval = FALSE}
+``` r
 summary(fit)
 names(summary(fit))
 summary(fit)[["coefficients"]]
@@ -88,7 +74,7 @@ fitted.values(fit)
 
 Look at cleaner `lm` stuff
 
-```{r}
+``` r
 fit |> 
   broom::tidy() |> 
   mutate(
@@ -96,12 +82,23 @@ fit |>
   ) |> 
   select(term, estimate, p.value) |> 
   knitr::kable(digits = 3)
+```
 
+| term              | estimate | p.value |
+|:------------------|---------:|--------:|
+| (Intercept)       |   19.839 |   0.104 |
+| stars             |   31.990 |   0.000 |
+| Borough: Brooklyn |  -49.754 |   0.000 |
+| Borough: Queens   |  -77.048 |   0.000 |
+| Borough: Bronx    |  -90.254 |   0.000 |
 
+``` r
 fit |> 
   broom::glance()
 ```
 
-
-
-
+    ## # A tibble: 1 × 12
+    ##   r.squared adj.r.squared sigma statistic   p.value    df   logLik    AIC    BIC
+    ##       <dbl>         <dbl> <dbl>     <dbl>     <dbl> <dbl>    <dbl>  <dbl>  <dbl>
+    ## 1    0.0342        0.0341  182.      271. 6.73e-229     4 -202113. 4.04e5 4.04e5
+    ## # ℹ 3 more variables: deviance <dbl>, df.residual <int>, nobs <int>
