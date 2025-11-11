@@ -94,19 +94,19 @@ Try computing our RMSEs
 rmse(linear_mod, test_df)
 ```
 
-    ## [1] 0.1356458
+    ## [1] 0.1345185
 
 ``` r
 rmse(smooth_mod, test_df)
 ```
 
-    ## [1] 0.06451927
+    ## [1] 0.07944668
 
 ``` r
 rmse(wiggly_mod, test_df)
 ```
 
-    ## [1] 0.07168537
+    ## [1] 0.08502357
 
 ## ITERATE!!
 
@@ -135,9 +135,9 @@ cv_df |> pull(train) |> nth(3)
     ##  5   396  -0.0599     5
     ##  6   397  -0.0284     6
     ##  7   399  -0.0596     7
-    ##  8   402  -0.0294     9
-    ##  9   403  -0.0395    10
-    ## 10   405  -0.0476    11
+    ##  8   400  -0.0399     8
+    ##  9   402  -0.0294     9
+    ## 10   403  -0.0395    10
     ## # ℹ 166 more rows
 
 Let’s fit models over and over.
@@ -181,3 +181,99 @@ cv_df |>
 ```
 
 <img src="cross_validation_files/figure-gfm/unnamed-chunk-14-1.png" width="90%" />
+
+## Child growth
+
+``` r
+growth_df = 
+  read_csv("data/nepalese_children.csv")
+```
+
+    ## Rows: 2705 Columns: 5
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## dbl (5): age, sex, weight, height, armc
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+Weight v arm_c
+
+``` r
+growth_df |> 
+  ggplot(aes(x = weight, y = armc)) + 
+  geom_point(alpha = .5)
+```
+
+<img src="cross_validation_files/figure-gfm/unnamed-chunk-16-1.png" width="90%" />
+
+Let’s show the models we might use.
+
+``` r
+growth_df =
+  growth_df |> 
+  mutate(
+    weight_cp7 = (weight > 7) * (weight - 7)
+  )
+```
+
+Let’s fit three models
+
+``` r
+linear_mod = lm(armc ~ weight, data = growth_df)
+pwl_mod    = lm(armc ~ weight + weight_cp7, data = growth_df)
+smooth_mod = mgcv::gam(armc ~ s(weight), data = growth_df)
+```
+
+``` r
+growth_df |> 
+  add_predictions(smooth_mod) |> 
+  ggplot(aes(x = weight, y = armc)) +
+  geom_point(alpha = .5) + 
+  geom_line(aes(y = pred), color = "red")
+```
+
+<img src="cross_validation_files/figure-gfm/unnamed-chunk-19-1.png" width="90%" />
+
+Now cross validate!
+
+``` r
+cv_df = 
+  crossv_mc(growth_df, n = 100) |> 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble)
+  )
+```
+
+``` r
+cv_df = 
+  cv_df |> 
+  mutate(
+    linear_mod = map(train, \(df) lm(armc ~ weight, data = df)),
+    pwl_mod    = map(train, \(df) lm(armc ~ weight + weight_cp7, data = df)),
+    smooth_mod = map(train, \(df) mgcv::gam(armc ~ s(weight), data = df))
+  ) |> 
+  mutate(
+    rmse_linear = map2_dbl(linear_mod, test, rmse),
+    rmse_pwl    = map2_dbl(pwl_mod, test, rmse),
+    rmse_smooth = map2_dbl(smooth_mod, test, rmse)
+  )
+```
+
+Create my boxplots!
+
+``` r
+cv_df |> 
+  select(starts_with("rmse")) |> 
+  pivot_longer(
+    everything(),
+    names_to = "model",
+    values_to = "rmse",
+    names_prefix = "rmse_"
+  ) |> 
+  ggplot(aes(x = model, y = rmse)) + 
+  geom_violin()
+```
+
+<img src="cross_validation_files/figure-gfm/unnamed-chunk-22-1.png" width="90%" />
