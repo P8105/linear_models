@@ -77,19 +77,19 @@ do a model comparison!
 rmse(linear_mod, test_df)
 ```
 
-    ## [1] 0.13222
+    ## [1] 0.1431431
 
 ``` r
 rmse(smooth_mod, test_df)
 ```
 
-    ## [1] 0.08631311
+    ## [1] 0.08723048
 
 ``` r
 rmse(wiggly_mod, test_df)
 ```
 
-    ## [1] 0.09691987
+    ## [1] 0.09290659
 
 ## Repeat a bunch of times
 
@@ -105,16 +105,16 @@ cv_df |>  pull(train) |> nth(3) |> as_tibble()
     ## # A tibble: 176 × 3
     ##       id range logratio
     ##    <int> <dbl>    <dbl>
-    ##  1     3   393  -0.0419
-    ##  2     4   394  -0.0510
-    ##  3     5   396  -0.0599
-    ##  4     7   399  -0.0596
-    ##  5     8   400  -0.0399
+    ##  1     1   390  -0.0504
+    ##  2     2   391  -0.0601
+    ##  3     3   393  -0.0419
+    ##  4     5   396  -0.0599
+    ##  5     7   399  -0.0596
     ##  6     9   402  -0.0294
-    ##  7    11   405  -0.0476
-    ##  8    12   406  -0.0604
-    ##  9    13   408  -0.0312
-    ## 10    14   409  -0.0382
+    ##  7    10   403  -0.0395
+    ##  8    11   405  -0.0476
+    ##  9    12   406  -0.0604
+    ## 10    13   408  -0.0312
     ## # ℹ 166 more rows
 
 ``` r
@@ -167,3 +167,111 @@ cv_df |>
 ```
 
 <img src="02_cross_validation_files/figure-gfm/unnamed-chunk-12-1.png" alt="" width="90%" />
+
+## Child growth
+
+``` r
+growth_df = 
+  read_csv("data/nepalese_children.csv") |> 
+  mutate(
+    weight_ch7 = (weight > 7) * (weight - 7)
+  )
+```
+
+    ## Rows: 2705 Columns: 5
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## dbl (5): age, sex, weight, height, armc
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+look at this
+
+``` r
+growth_df
+```
+
+    ## # A tibble: 2,705 × 6
+    ##      age   sex weight height  armc weight_ch7
+    ##    <dbl> <dbl>  <dbl>  <dbl> <dbl>      <dbl>
+    ##  1    41     1   12.8   91.2  14.3        5.8
+    ##  2    57     2   14.9  104.   13.9        7.9
+    ##  3    35     2   12.1   86.4  14.4        5.1
+    ##  4    46     1   13.9   96.4  13.5        6.9
+    ##  5    26     2    8.7   78.5  12.1        1.7
+    ##  6    57     1   12.1   89.9  13.9        5.1
+    ##  7    22     1    9.8   79.1  13          2.8
+    ##  8    55     1   13.7   92.6  13.6        6.7
+    ##  9    20     1   10.1   77.7  14.5        3.1
+    ## 10    36     2   11.2   79.8  14.4        4.2
+    ## # ℹ 2,695 more rows
+
+``` r
+growth_df |> 
+  ggplot(aes(x = weight, y = armc)) + 
+  geom_point(alpha = .5)
+```
+
+<img src="02_cross_validation_files/figure-gfm/unnamed-chunk-14-1.png" alt="" width="90%" />
+
+``` r
+linear_fit = lm(armc ~ weight, data = growth_df)
+pwl_fit    = lm(armc ~ weight + weight_ch7, data = growth_df)
+smooth_fit = gam(armc ~ s(weight), data = growth_df)
+```
+
+``` r
+growth_df |> 
+  add_predictions(pwl_fit) |> 
+  ggplot(aes(x = weight, y = armc)) + 
+  geom_point(alpha = .5) + 
+  geom_line(aes(y = pred), color = "red")
+```
+
+<img src="02_cross_validation_files/figure-gfm/unnamed-chunk-16-1.png" alt="" width="90%" />
+
+do all the CV stuff we know and love
+
+``` r
+cv_df = 
+  crossv_mc(growth_df, 100) |> 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble)
+  )
+```
+
+here i’m fitting models and getting rmses
+
+``` r
+cv_df = 
+  cv_df |> 
+  mutate(
+    linear_fit = map(train, \(df) lm(armc ~ weight, data = df)),
+    pwl_fit    = map(train, \(df) lm(armc ~ weight + weight_ch7, data = df)),
+    smooth_fit = map(train, \(df) gam(armc ~ s(weight), data = df))
+  ) |> 
+  mutate(
+    rmse_linear = map2_dbl(linear_fit, test, rmse),
+    rmse_pwl    = map2_dbl(pwl_fit, test, rmse),
+    rmse_smooth = map2_dbl(smooth_fit, test, rmse)
+  )
+```
+
+Look at this!!
+
+``` r
+cv_df |> 
+  select(starts_with("rmse_")) |> 
+  pivot_longer(
+    everything(),
+    names_to = "model",
+    names_prefix = "rmse_",
+    values_to = "rmse"
+  ) |> 
+  ggplot(aes(x = model, y = rmse)) + 
+  geom_violin()
+```
+
+<img src="02_cross_validation_files/figure-gfm/unnamed-chunk-19-1.png" alt="" width="90%" />
